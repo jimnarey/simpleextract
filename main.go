@@ -53,15 +53,34 @@ type unarrArchive struct {
 }
 
 func (a unarrArchive) extractAllTo(targetPath string) error {
+	fmt.Println("Target path: " + targetPath)
 	arc, err := unarr.NewArchive(a.fileBase.path)
 	if err != nil {
 		return err
 	}
 	defer arc.Close()
-	_, err = arc.Extract(targetPath)
+	// contents, err := arc.List()
+	fmt.Println("**")
+	// fmt.Println(path.Ext(contents[0]))
 	if err != nil {
 		return err
 	}
+	_ = mkdir(targetPath)
+	_, err = arc.Extract(targetPath)
+	if err != nil {
+		fmt.Println("Extraction err: ")
+		fmt.Println(err)
+		return err
+	}
+	// if len(contents) == 1 && path.Ext(contents[0]) == ".tar" {
+	// 	subArc := unarrArchive{fileBase: fileBase{path: path.Join(targetPath, contents[0])}}
+	// 	err := subArc.extractAllTo(targetPath)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+
+	// }
+
 	return nil
 }
 
