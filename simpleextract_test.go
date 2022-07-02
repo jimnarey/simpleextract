@@ -1,4 +1,4 @@
-package simpleextract_test
+package main_test
 
 import (
 	"os"
@@ -13,16 +13,6 @@ import (
 
 const FIXTURES_PATH string = "./fixtures"
 const OUT_PATH string = "./fixtures/out"
-
-// var testArchives = []string{"file.7z", "file.rar", "file.tar", "file.tar.7z", "file.tar.bz2", "file.tar.gz", "file.tar.xz"}
-
-// var entries = []Entry{}
-
-// func getEntries([]string) []Entry {
-// 	for i := 0; i < len(testArchives); i++ {
-// 		entries = append(entries, Entry("When archive is something", path.Join(FIXTURES_PATH, testArchives[i]), OUT_PATH, "file.txt"))
-// 	}
-// }
 
 func TestSimpleExtract(t *testing.T) {
 	RegisterFailHandler(Fail)
