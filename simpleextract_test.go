@@ -1,4 +1,4 @@
-package main_test
+package simpleextract_test
 
 import (
 	"os"
@@ -13,6 +13,8 @@ import (
 
 const FIXTURES_PATH string = "./fixtures"
 const OUT_PATH string = "./fixtures/out"
+
+// var testArchives = []string{"file.7z", "file.rar", "file.tar", "file.tar.7z", "file.tar.bz2", "file.tar.gz", "file.tar.xz", "file.zip"}
 
 func TestSimpleExtract(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -39,6 +41,15 @@ var _ = Describe("Simple Extract", func() {
 		Entry("When archive is tar.gz", path.Join(FIXTURES_PATH, "file.tar.gz"), OUT_PATH, "file.txt"),
 		Entry("When archive is tar.xz", path.Join(FIXTURES_PATH, "file.tar.xz"), OUT_PATH, "file.txt"),
 		Entry("When archive is zip", path.Join(FIXTURES_PATH, "file.zip"), OUT_PATH, "file.txt"),
+		Entry("When archive is zip with subdir", path.Join(FIXTURES_PATH, "subdir.zip"), OUT_PATH, "subdir/file.txt"),
 	)
+
+	// Describe("Subtract numbers", func() {
+	// 	Context("3 from 5", func() {
+	// 		It("should be 2", func() {
+	// 			Expect(Subtract(5, 3)).To(Equal(2))
+	// 		})
+	// 	})
+	// })
 
 })

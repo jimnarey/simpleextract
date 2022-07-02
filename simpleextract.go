@@ -1,8 +1,10 @@
-package main
+package simpleextract
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -15,8 +17,6 @@ import (
 
 const FIXTURES_PATH_ string = "./fixtures"
 const OUT_PATH_ string = "./fixtures/out"
-
-var testArchives_ = []string{"file.7z", "file.rar", "file.tar", "file.tar.7z", "file.tar.bz2", "file.tar.gz", "file.tar.xz", "file.zip"}
 
 var ARCHIVE_GETTERS = []func(string) (archive, error){newArchiverArchive, newUnarrArchive}
 
@@ -86,7 +86,62 @@ type archiverArchive struct {
 }
 
 func (a archiverArchive) extractAllTo(targetPath string) ([]string, error) {
+	f, err := os.Open(a.fileBase.path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	format, input, err := archiver.Identify(a.fileBase.path, f)
+	if err != nil {
+		return nil, err
+	}
+	err = mkdir(targetPath)
+	if err != nil {
+		return nil, err
+	}
+	handler := func(ctx context.Context, f archiver.File) error {
+		// fmt.Println("Extractor instantiated")
+		// fmt.Println(f.FileInfo.Name())
+		// fmt.Println(f.NameInArchive)
+		// x, err := f.Open()
+		if err != nil {
+			// fmt.Println(err)
+			return err
+		}
+		x, err := f.Open()
+		if err != nil {
+			// fmt.Println(err)
+			return err
+		}
+		// x.Read()
+		var y []byte
+		x.Read(y)
+		fmt.Println(x)
+		err = ioutil.WriteFile(path.Join(targetPath, f.NameInArchive), y, 0755)
+		if err != nil {
+			// fmt.Println(err)
+			return err
+		}
+		return nil
+	}
+	// want to extract something?
+	if ex, ok := format.(archiver.Extractor); ok {
+		err := ex.Extract(context.TODO(), input, nil, handler)
+		if err != nil {
+			return nil, err
+		}
+	}
 
+	// or maybe it's compressed and you want to decompress it?
+	if decom, ok := format.(archiver.Decompressor); ok {
+		rc, err := decom.OpenReader(input)
+		if err != nil {
+			return nil, err
+		}
+		defer rc.Close()
+		// fmt.Println("Decompressor instantiated")
+		// read from rc to get decompressed data
+	}
 	return nil, nil
 }
 
@@ -111,20 +166,19 @@ func newArchiverArchive(archivePath string) (archive, error) {
 	defer f.Close()
 	_, _, err = archiver.Identify(archivePath, f)
 	if err != nil {
-		fmt.Println("*archiver not compatible")
 		return nil, err
 	}
 	return archiverArchive{fileBase: fileBase{path: archivePath}}, nil
 }
 
-func getArchive(archivePath string, archiveGetters []func(string) (archive, error)) (archive, error) {
+func GetArchive(archivePath string, archiveGetters []func(string) (archive, error)) (archive, error) {
 	for i := 0; i < len(archiveGetters); i++ {
 		archive, err := archiveGetters[i](archivePath)
 		if err == nil {
 			return archive, nil
 		}
 
-		fmt.Println(err)
+		// fmt.Println(err)
 	}
 	return nil, errors.New("no compatible unarchiver found")
 }
@@ -146,7 +200,7 @@ func getTargetSubDir(targetPath string, arc archive) (string, error) {
 }
 
 func ExtractArchive(archivePath string, targetPath string) error {
-	arc, err := getArchive(path.Join(archivePath), ARCHIVE_GETTERS)
+	arc, err := GetArchive(path.Join(archivePath), ARCHIVE_GETTERS)
 	if err != nil {
 		return err
 	}
@@ -166,17 +220,4 @@ func findByExt(searchPath string, fileExt string) ([]string, error) {
 		return []string{}, err
 	}
 	return tars, nil
-}
-
-func main() {
-
-	for i := 0; i < len(testArchives_); i++ {
-		arc, err := getArchive(path.Join(FIXTURES_PATH_, testArchives_[i]), ARCHIVE_GETTERS)
-		if err != nil {
-
-		}
-		fmt.Println(arc)
-
-	}
-
 }
