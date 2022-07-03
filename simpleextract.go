@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -18,6 +18,7 @@ import (
 const FIXTURES_PATH_ string = "./fixtures"
 const OUT_PATH_ string = "./fixtures/out"
 
+var BUFFERSIZE = 1024
 var ARCHIVE_GETTERS = []func(string) (archive, error){newArchiverArchive, newUnarrArchive}
 
 // func panicOnErr(err error) {
@@ -85,6 +86,53 @@ type archiverArchive struct {
 	fileBase
 }
 
+func archiverExtract(format archiver.Format, input io.Reader, targetPath string) error {
+
+	handler := func(ctx context.Context, f archiver.File) error {
+		fmt.Println(f.FileInfo.Name())
+
+		x, err := f.Open()
+		if err != nil {
+			return err
+		}
+
+		if f.IsDir() {
+			mkdir(path.Join(targetPath, f.NameInArchive))
+		} else {
+			t, err := os.Create(path.Join(targetPath, f.NameInArchive))
+			if err != nil {
+				return err
+			}
+			defer t.Close()
+			buf := make([]byte, BUFFERSIZE)
+			for {
+				n, err := x.Read(buf)
+				if err != nil && err != io.EOF {
+					return err
+				}
+				if n == 0 {
+					break
+				}
+
+				if _, err := t.Write(buf[:n]); err != nil {
+					return err
+				}
+			}
+			t.Sync()
+		}
+		return nil
+	}
+
+	// want to extract something?
+	if ex, ok := format.(archiver.Extractor); ok {
+		err := ex.Extract(context.TODO(), input, nil, handler)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (a archiverArchive) extractAllTo(targetPath string) ([]string, error) {
 	f, err := os.Open(a.fileBase.path)
 	if err != nil {
@@ -99,49 +147,18 @@ func (a archiverArchive) extractAllTo(targetPath string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	handler := func(ctx context.Context, f archiver.File) error {
-		// fmt.Println("Extractor instantiated")
-		// fmt.Println(f.FileInfo.Name())
-		// fmt.Println(f.NameInArchive)
-		// x, err := f.Open()
-		if err != nil {
-			// fmt.Println(err)
-			return err
-		}
-		x, err := f.Open()
-		if err != nil {
-			// fmt.Println(err)
-			return err
-		}
-		// x.Read()
-		var y []byte
-		x.Read(y)
-		fmt.Println(x)
-		err = ioutil.WriteFile(path.Join(targetPath, f.NameInArchive), y, 0755)
-		if err != nil {
-			// fmt.Println(err)
-			return err
-		}
-		return nil
-	}
-	// want to extract something?
-	if ex, ok := format.(archiver.Extractor); ok {
-		err := ex.Extract(context.TODO(), input, nil, handler)
-		if err != nil {
-			return nil, err
-		}
-	}
-
+	err = archiverExtract(format, input, targetPath)
+	fmt.Println(err)
 	// or maybe it's compressed and you want to decompress it?
-	if decom, ok := format.(archiver.Decompressor); ok {
-		rc, err := decom.OpenReader(input)
-		if err != nil {
-			return nil, err
-		}
-		defer rc.Close()
-		// fmt.Println("Decompressor instantiated")
-		// read from rc to get decompressed data
-	}
+	// if decom, ok := format.(archiver.Decompressor); ok {
+	// 	rc, err := decom.OpenReader(input)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	defer rc.Close()
+	// 	// fmt.Println("Decompressor instantiated")
+	// 	// read from rc to get decompressed data
+	// }
 	return nil, nil
 }
 
