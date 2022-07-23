@@ -7,8 +7,8 @@ import (
 	"io"
 	"os"
 	"path"
-	"path/filepath"
-	"strconv"
+
+	// "strconv"
 	"strings"
 
 	"github.com/gen2brain/go-unarr"
@@ -42,6 +42,8 @@ func isDirectory(path string) (bool, error) {
 	return fileInfo.IsDir(), err
 }
 
+// Common interface, base struct and base struct method(s)
+
 type archive interface {
 	extractAllTo(string) ([]string, error)
 	basename() string
@@ -55,6 +57,8 @@ func (f fileBase) basename() string {
 	basename := path.Base(f.path)
 	return strings.TrimSuffix(basename, path.Ext(basename))
 }
+
+// unarr struct and methods, implements common interface
 
 type unarrArchive struct {
 	fileBase
@@ -82,9 +86,38 @@ func (a unarrArchive) basename() string {
 	return a.fileBase.basename()
 }
 
+// archiver struct and methods, implements common interface
+
 type archiverArchive struct {
 	fileBase
 }
+
+func (a archiverArchive) extractAllTo(targetPath string) ([]string, error) {
+	f, err := os.Open(a.fileBase.path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	format, input, err := archiver.Identify(a.fileBase.path, f)
+	if err != nil {
+		return nil, err
+	}
+	err = mkdir(targetPath)
+	if err != nil {
+		return nil, err
+	}
+	err = archiverExtract(format, input, targetPath)
+	fmt.Println(err)
+
+	return nil, nil
+}
+
+func (a archiverArchive) basename() string {
+	return a.fileBase.basename()
+}
+
+// heavy lifting for archiver extract
+// consider options for moving the handler out (possible?)
 
 func archiverExtract(format archiver.Format, input io.Reader, targetPath string) error {
 
@@ -130,41 +163,19 @@ func archiverExtract(format archiver.Format, input io.Reader, targetPath string)
 			return err
 		}
 	}
+	if decom, ok := format.(archiver.Decompressor); ok {
+		rc, err := decom.OpenReader(input)
+		if err != nil {
+			return err
+		}
+		defer rc.Close()
+		// fmt.Println("Decompressor instantiated")
+		// read from rc to get decompressed data
+	}
 	return nil
 }
 
-func (a archiverArchive) extractAllTo(targetPath string) ([]string, error) {
-	f, err := os.Open(a.fileBase.path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	format, input, err := archiver.Identify(a.fileBase.path, f)
-	if err != nil {
-		return nil, err
-	}
-	err = mkdir(targetPath)
-	if err != nil {
-		return nil, err
-	}
-	err = archiverExtract(format, input, targetPath)
-	fmt.Println(err)
-	// or maybe it's compressed and you want to decompress it?
-	// if decom, ok := format.(archiver.Decompressor); ok {
-	// 	rc, err := decom.OpenReader(input)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	defer rc.Close()
-	// 	// fmt.Println("Decompressor instantiated")
-	// 	// read from rc to get decompressed data
-	// }
-	return nil, nil
-}
-
-func (a archiverArchive) basename() string {
-	return a.fileBase.basename()
-}
+// get new archivier, unarr structs
 
 func newUnarrArchive(archivePath string) (archive, error) {
 	arc, err := unarr.NewArchive(archivePath)
@@ -188,6 +199,8 @@ func newArchiverArchive(archivePath string) (archive, error) {
 	return archiverArchive{fileBase: fileBase{path: archivePath}}, nil
 }
 
+// try to get either an archiver or unarr struct from the input file
+
 func GetArchive(archivePath string, archiveGetters []func(string) (archive, error)) (archive, error) {
 	for i := 0; i < len(archiveGetters); i++ {
 		archive, err := archiveGetters[i](archivePath)
@@ -200,21 +213,21 @@ func GetArchive(archivePath string, archiveGetters []func(string) (archive, erro
 	return nil, errors.New("no compatible unarchiver found")
 }
 
-func getTargetSubDir(targetPath string, arc archive) (string, error) {
+// func getTargetSubDir(targetPath string, arc archive) (string, error) {
 
-	for i := 0; i < 100; i++ {
-		subDir := path.Join(targetPath, arc.basename()+"_"+strconv.Itoa(i))
-		if _, err := os.Stat(subDir); os.IsNotExist(err) {
-			err = mkdir(subDir)
-			if err != nil {
-				return "", err
-			}
-			return subDir, nil
-		}
-	}
-	return "", errors.New("no subdir name")
+// 	for i := 0; i < 100; i++ {
+// 		subDir := path.Join(targetPath, arc.basename()+"_"+strconv.Itoa(i))
+// 		if _, err := os.Stat(subDir); os.IsNotExist(err) {
+// 			err = mkdir(subDir)
+// 			if err != nil {
+// 				return "", err
+// 			}
+// 			return subDir, nil
+// 		}
+// 	}
+// 	return "", errors.New("no subdir name")
 
-}
+// }
 
 func ExtractArchive(archivePath string, targetPath string) error {
 	arc, err := GetArchive(path.Join(archivePath), ARCHIVE_GETTERS)
@@ -225,16 +238,16 @@ func ExtractArchive(archivePath string, targetPath string) error {
 	return nil
 }
 
-func findByExt(searchPath string, fileExt string) ([]string, error) {
-	tars := []string{}
-	err := filepath.Walk(searchPath, func(path_ string, info os.FileInfo, err error) error {
-		if err == nil && filepath.Ext(info.Name()) == fileExt {
-			tars = append(tars, path.Join(path_, info.Name()))
-		}
-		return nil
-	})
-	if err != nil {
-		return []string{}, err
-	}
-	return tars, nil
-}
+// func findByExt(searchPath string, fileExt string) ([]string, error) {
+// 	tars := []string{}
+// 	err := filepath.Walk(searchPath, func(path_ string, info os.FileInfo, err error) error {
+// 		if err == nil && filepath.Ext(info.Name()) == fileExt {
+// 			tars = append(tars, path.Join(path_, info.Name()))
+// 		}
+// 		return nil
+// 	})
+// 	if err != nil {
+// 		return []string{}, err
+// 	}
+// 	return tars, nil
+// }
