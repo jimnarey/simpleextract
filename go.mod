@@ -1,17 +1,20 @@
 module simpleextract
 
-go 1.17
+go 1.18
+
+require (
+	github.com/gen2brain/go-unarr v0.1.4
+	github.com/mholt/archiver/v4 v4.0.0-alpha.7
+)
 
 require (
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/dsnet/compress v0.0.1 // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
-	github.com/gen2brain/go-unarr v0.1.4 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/klauspost/compress v1.15.5 // indirect
 	github.com/klauspost/pgzip v1.2.5 // indirect
-	github.com/mholt/archiver/v4 v4.0.0-alpha.7 // indirect
 	github.com/nwaples/rardecode/v2 v2.0.0-beta.2 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/onsi/ginkgo v1.16.5 // indirect
